@@ -1,130 +1,143 @@
-// ============================================================
-// BOXMEOUT — API Client (lib)
-// Typed fetch wrappers for all backend REST endpoints.
-// Base URL from process.env.NEXT_PUBLIC_API_URL
-// ============================================================
+// ─── TYPES ────────────────────────────────────────────────────────────────────
 
-import type { Bet, Market, MarketStats, Portfolio } from '../src/types';
+export type MarketStatus = "Open" | "Locked" | "Resolved" | "Cancelled" | "Disputed";
+export type Outcome = "FighterA" | "FighterB" | "Draw" | "NoContest";
+export type BetSide = "FighterA" | "FighterB";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
-
-// ─── Typed error ─────────────────────────────────────────────────────────────
-
-export class APIError extends Error {
-  constructor(
-    public readonly status: number,
-    message: string,
-  ) {
-    super(message);
-    this.name = 'APIError';
-  }
+export interface Fighter {
+  name: string;
+  record: string;
+  nationality: string;
+  weightClass: string;
 }
 
-// ─── Core fetch helper ────────────────────────────────────────────────────────
-
-async function apiFetch<T>(path: string): Promise<T> {
-  let res: Response;
-  try {
-    res = await fetch(`${API_BASE}${path}`);
-  } catch (e) {
-    throw new APIError(0, (e as Error).message);
-  }
-  if (!res.ok) {
-    throw new APIError(res.status, `API error ${res.status}: ${res.statusText}`);
-  }
-  return res.json() as Promise<T>;
+export interface Market {
+  id: string;
+  contractAddress: string;
+  fighterA: Fighter;
+  fighterB: Fighter;
+  scheduledAt: string;
+  bettingEndsAt: string;
+  status: MarketStatus;
+  outcome: Outcome | null;
+  poolA: string;  // BigInt serialized as string
+  poolB: string;
+  totalPool: string;
+  oracleAddress: string;
+  createdBy: string;
 }
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-export interface MarketFilters {
-  status?: string;
-  weight_class?: string;
-  search?: string;
+export interface Bet {
+  id: string;
+  marketId: string;
+  bettor: string;
+  side: BetSide;
+  amount: string;
+  placedAt: string;
+  claimed: boolean;
+  payout: string | null;
 }
 
-export interface PaginationParams {
+export interface MarketStats {
+  totalBets: number;
+  uniqueBettors: number;
+  poolA: string;
+  poolB: string;
+  totalVolume: string;
+  impliedOddsA: number;
+  impliedOddsB: number;
+}
+
+export interface OddsSnapshot {
+  timestamp: string;
+  poolA: string;
+  poolB: string;
+  oddsA: number;
+  oddsB: number;
+}
+
+export interface PortfolioSummary {
+  totalStaked: string;
+  totalWinnings: string;
+  pendingClaims: string;
+  activeBets: number;
+  completedBets: number;
+  roi: number;
+}
+
+export interface MarketQueryParams {
+  status?: MarketStatus;
+  weightClass?: string;
   page?: number;
   limit?: number;
 }
 
-export interface MarketListResponse {
-  markets: Market[];
-  total: number;
-  page: number;
-  limit: number;
+// ─── API FUNCTIONS ────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/markets
+ * Fetches the market list with optional filters and pagination.
+ */
+export async function fetchMarkets(params?: MarketQueryParams): Promise<Market[]> {
+  throw new Error("Not implemented");
 }
 
-export interface OutcomeOdds {
-  outcome: string;
-  multiplier: number;
-  implied_probability: number;
-  pool: string;
-  total_pool: string;
-}
-
-export interface MarketOdds {
-  market_id: string;
-  fighter_a: OutcomeOdds;
-  fighter_b: OutcomeOdds;
-  draw: OutcomeOdds;
-  total_pool: string;
-}
-
-export interface PlatformStats {
-  total_markets: number;
-  open_markets: number;
-  total_volume_xlm: number;
-  total_bettors: number;
-}
-
-// ─── API functions ────────────────────────────────────────────────────────────
-
-/** GET /api/markets — list with optional filters and pagination */
-export async function fetchMarkets(
-  filters?: MarketFilters,
-  pagination?: PaginationParams,
-): Promise<MarketListResponse> {
-  const params = new URLSearchParams();
-  if (filters?.status) params.set('status', filters.status);
-  if (filters?.weight_class) params.set('weight_class', filters.weight_class);
-  if (filters?.search) params.set('search', filters.search);
-  if (pagination?.page) params.set('page', pagination.page.toString());
-  if (pagination?.limit) params.set('limit', pagination.limit.toString());
-  const qs = params.toString();
-  return apiFetch<MarketListResponse>(`/api/markets${qs ? `?${qs}` : ''}`);
-}
-
-/** GET /api/markets/:market_id — single market with live odds */
+/**
+ * GET /api/markets/:id
+ * Fetches a single market by ID. Throws if not found.
+ */
 export async function fetchMarketById(market_id: string): Promise<Market> {
-  return apiFetch<Market>(`/api/markets/${market_id}`);
+  throw new Error("Not implemented");
 }
 
-/** GET /api/markets/:market_id/bets — all bets for a market */
-export async function fetchBetsByMarket(market_id: string): Promise<Bet[]> {
-  return apiFetch<Bet[]>(`/api/markets/${market_id}/bets`);
-}
-
-/** GET /api/portfolio/:address — full portfolio for a wallet address */
-export async function fetchPortfolio(address: string): Promise<Portfolio> {
-  return apiFetch<Portfolio>(`/api/portfolio/${address}`);
-}
-
-/** GET /api/markets/:market_id/stats — aggregate market statistics */
+/**
+ * GET /api/markets/:id/stats
+ * Fetches aggregated stats for a market.
+ */
 export async function fetchMarketStats(market_id: string): Promise<MarketStats> {
-  return apiFetch<MarketStats>(`/api/markets/${market_id}/stats`);
+  throw new Error("Not implemented");
 }
 
-/** GET /api/markets/:market_id/odds — live parimutuel odds for a market */
-export async function fetchOdds(
+/**
+ * GET /api/markets/:id/bets
+ * Fetches all bets for a market.
+ */
+export async function fetchMarketBets(market_id: string): Promise<Bet[]> {
+  throw new Error("Not implemented");
+}
+
+/**
+ * GET /api/bets/:address
+ * Fetches a user's full bet history.
+ */
+export async function fetchBetsByAddress(address: string): Promise<Bet[]> {
+  throw new Error("Not implemented");
+}
+
+/**
+ * GET /api/bets/:address/portfolio
+ * Fetches portfolio summary stats for a wallet address.
+ */
+export async function fetchPortfolioSummary(address: string): Promise<PortfolioSummary> {
+  throw new Error("Not implemented");
+}
+
+/**
+ * GET /api/bets/payout-estimate?market_id=&side=&amount=
+ * Returns estimated payout for a hypothetical bet without placing it.
+ */
+export async function fetchPayoutEstimate(
   market_id: string,
-  outcome?: 'fighter_a' | 'fighter_b' | 'draw',
-): Promise<MarketOdds | OutcomeOdds> {
-  const qs = outcome ? `?outcome=${outcome}` : '';
-  return apiFetch<MarketOdds | OutcomeOdds>(`/api/markets/${market_id}/odds${qs}`);
+  side: BetSide,
+  amount: bigint
+): Promise<bigint> {
+  throw new Error("Not implemented");
 }
 
-/** GET /api/stats — platform-wide statistics */
-export async function fetchPlatformStats(): Promise<PlatformStats> {
-  return apiFetch<PlatformStats>(`/api/stats`);
+/**
+ * GET /api/markets/:id/odds-history
+ * Fetches historical odds snapshots for the market odds chart.
+ */
+export async function fetchOddsHistory(market_id: string): Promise<OddsSnapshot[]> {
+  throw new Error("Not implemented");
 }
