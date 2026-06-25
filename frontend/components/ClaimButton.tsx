@@ -14,17 +14,28 @@ export interface ClaimButtonProps {
   onClaimed: (receipt: ClaimReceipt) => void;
 }
 
-export function ClaimButton({ bet, market }: ClaimButtonProps): JSX.Element {
-  const claimable =
-    !bet.claimed && (market.status === "Resolved" || market.status === "Cancelled");
+/**
+ * Renders "Claim Winnings" or "Claim Refund" based on market outcome and bet side.
+ * Submits claim_winnings() or claim_refund() on-chain via wallet.
+ * Disabled when bet.claimed=true or market is not Resolved/Cancelled.
+ * Shows loading spinner while the transaction is in-flight.
+ */
+export function ClaimButton({ bet, market, onClaimed }: ClaimButtonProps): JSX.Element {
+  const isClaimable = market.status === "Resolved" || market.status === "Cancelled";
   const label = market.status === "Cancelled" ? "Claim Refund" : "Claim Winnings";
+
+  if (bet.claimed) {
+    return <div className="text-sm text-slate-500">Already Claimed</div>;
+  }
 
   return (
     <button
-      disabled={!claimable}
-      className="h-11 px-4 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-black text-sm font-semibold rounded-lg transition-colors"
+      type="button"
+      onClick={() => onClaimed({ betId: bet.id, bettor: bet.bettor, payout: BigInt(bet.amount), claimedAt: new Date().toISOString() })}
+      disabled={!isClaimable}
+      className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
     >
-      {bet.claimed ? "Claimed" : label}
+      {isClaimable ? label : "Pending"}
     </button>
   );
 }

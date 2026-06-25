@@ -1,41 +1,33 @@
 "use client";
+
 import { useEffect, useState } from "react";
 
 export interface CountdownTimerProps {
-  targetTimestamp: number;
-  label: string;
+  targetTimestamp: number; // Unix seconds
+  label: string;           // e.g. "Betting closes in"
 }
 
-function formatRemaining(seconds: number): string {
-  if (seconds <= 0) return "LIVE";
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-}
-
+/**
+ * Live countdown to a Unix timestamp, updated every second.
+ * Displays HH:MM:SS format with the label prefix.
+ * Switches to "LIVE" text once targetTimestamp is reached.
+ */
 export function CountdownTimer({ targetTimestamp, label }: CountdownTimerProps): JSX.Element {
-  const [remaining, setRemaining] = useState(() =>
-    Math.max(0, targetTimestamp - Math.floor(Date.now() / 1000))
-  );
+  const [now, setNow] = useState(() => Date.now() / 1000);
 
   useEffect(() => {
-    if (remaining <= 0) return;
-    const id = setInterval(() => {
-      setRemaining(Math.max(0, targetTimestamp - Math.floor(Date.now() / 1000)));
-    }, 1000);
-    return () => clearInterval(id);
-  }, [targetTimestamp, remaining]);
+    const interval = window.setInterval(() => setNow(Date.now() / 1000), 1000);
+    return () => window.clearInterval(interval);
+  }, []);
 
-  const display = formatRemaining(remaining);
+  const remaining = Math.max(0, targetTimestamp - Math.floor(now));
+  const hours = String(Math.floor(remaining / 3600)).padStart(2, "0");
+  const minutes = String(Math.floor((remaining % 3600) / 60)).padStart(2, "0");
+  const seconds = String(remaining % 60).padStart(2, "0");
 
   return (
-    <span className="text-sm text-gray-400">
-      {display === "LIVE" ? (
-        <span className="text-green-400 font-semibold">LIVE</span>
-      ) : (
-        <>{label}: <span className="font-mono text-white">{display}</span></>
-      )}
-    </span>
+    <div className="text-sm text-slate-600">
+      {label}: {remaining <= 0 ? "LIVE" : `${hours}:${minutes}:${seconds}`}
+    </div>
   );
 }
