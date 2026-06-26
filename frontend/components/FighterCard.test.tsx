@@ -1,6 +1,5 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { FighterCard } from "./FighterCard";
 import { Fighter } from "@/lib/api";
 
@@ -12,7 +11,15 @@ const buildFighter = (): Fighter => ({
 });
 
 describe("FighterCard", () => {
-  it("renders secondary fighter metadata", () => {
+  it("renders fighter name large and bold", () => {
+    render(<FighterCard fighter={buildFighter()} side="A" poolAmount={1200n} impliedOdds={72.5} />);
+
+    const name = screen.getByText("Lina Torres");
+    expect(name).toBeInTheDocument();
+    expect(name.className).toContain("font-bold");
+  });
+
+  it("renders all fighter metadata fields", () => {
     render(<FighterCard fighter={buildFighter()} side="A" poolAmount={1200n} impliedOdds={72.5} />);
 
     expect(screen.getByText("Lina Torres")).toBeInTheDocument();
@@ -21,21 +28,41 @@ describe("FighterCard", () => {
     expect(screen.getByText("Featherweight")).toBeInTheDocument();
   });
 
-  it("matches the structural snapshot", () => {
-    const { container } = render(<FighterCard fighter={buildFighter()} side="A" poolAmount={1200n} impliedOdds={72.5} />);
+  it("formats pool amount from stroops to XLM with 2 decimal places", () => {
+    render(<FighterCard fighter={buildFighter()} side="A" poolAmount={100000000n} impliedOdds={50.0} />);
 
-    expect(container.firstChild).toMatchSnapshot();
+    expect(screen.getByText(/10\.00 XLM/)).toBeInTheDocument();
   });
 
-  it("renders a zero pool value as 0 XLM", () => {
+  it("shows 0 XLM when pool is zero", () => {
     render(<FighterCard fighter={buildFighter()} side="B" poolAmount={0n} impliedOdds={25.0} />);
 
-    expect(screen.getByText(/0 XLM/)).toBeInTheDocument();
+    expect(screen.getByText(/0\.00 XLM/)).toBeInTheDocument();
   });
 
-  it("formats implied odds to one decimal place", () => {
-    render(<FighterCard fighter={buildFighter()} side="A" poolAmount={2500n} impliedOdds={2.045} />);
+  it("formats implied odds to 1 decimal place", () => {
+    render(<FighterCard fighter={buildFighter()} side="A" poolAmount={2500n} impliedOdds={62.546} />);
 
-    expect(screen.getByText(/2\.0%/)).toBeInTheDocument();
+    expect(screen.getByText(/62\.5%/)).toBeInTheDocument();
+  });
+
+  it("applies blue background tint for side A", () => {
+    const { container } = render(<FighterCard fighter={buildFighter()} side="A" poolAmount={1200n} impliedOdds={72.5} />);
+    const card = container.querySelector("div");
+
+    expect(card?.className).toContain("bg-blue");
+  });
+
+  it("applies red background tint for side B", () => {
+    const { container } = render(<FighterCard fighter={buildFighter()} side="B" poolAmount={1200n} impliedOdds={27.5} />);
+    const card = container.querySelector("div");
+
+    expect(card?.className).toContain("bg-red");
+  });
+
+  it("matches the structural snapshot", () => {
+    const { container } = render(<FighterCard fighter={buildFighter()} side="A" poolAmount={100000000n} impliedOdds={62.5} />);
+
+    expect(container.firstChild).toMatchSnapshot();
   });
 });
