@@ -9,6 +9,9 @@ jest.mock("@/lib/stellar");
 const mockUseWallet = useWallet as jest.Mock;
 const mockBuildSorobanInvocation = stellar.buildSorobanInvocation as jest.Mock;
 const mockSubmitTransaction = stellar.submitTransaction as jest.Mock;
+const mockUseWallet = useWallet as any;
+const mockBuildSorobanInvocation = stellar.buildSorobanInvocation as any;
+const mockSubmitTransaction = stellar.submitTransaction as any;
 
 describe("usePlaceBet", () => {
   const mockAddress = "GADDR1234567890ABCDEF";

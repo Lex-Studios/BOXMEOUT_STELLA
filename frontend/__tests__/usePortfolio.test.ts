@@ -9,6 +9,8 @@ jest.mock("@/lib/api", () => ({
 
 const mockFetchBetsByAddress = api.fetchBetsByAddress as jest.Mock;
 const mockFetchPortfolioSummary = api.fetchPortfolioSummary as jest.Mock;
+const mockFetchBetsByAddress = api.fetchBetsByAddress as any;
+const mockFetchPortfolioSummary = api.fetchPortfolioSummary as any;
 
 describe("usePortfolio", () => {
   beforeEach(() => {
@@ -76,6 +78,7 @@ describe("usePortfolio", () => {
 
   it("handles partial failure gracefully - both calls made even on error", async () => {
     const mockBets = [];
+    const mockBets: any = [];
     const mockSummary = {
       totalStaked: "1000000000",
       totalWinnings: "500000000",
@@ -103,6 +106,7 @@ describe("usePortfolio", () => {
 
   it("refetch re-triggers both API calls", async () => {
     const mockBets = [];
+    const mockBets: any = [];
     const mockSummary = {
       totalStaked: "1000000000",
       totalWinnings: "500000000",
@@ -137,6 +141,7 @@ describe("usePortfolio", () => {
 
   it("clears data when address changes from set to null", async () => {
     const mockBets = [];
+    const mockBets: any = [];
     const mockSummary = {
       totalStaked: "1000000000",
       totalWinnings: "500000000",
@@ -151,6 +156,7 @@ describe("usePortfolio", () => {
 
     const { result, rerender } = renderHook(
       ({ address }) => usePortfolio(address),
+      ({ address }: any) => usePortfolio(address),
       { initialProps: { address: "GADDR1234567890ABCDEF" } }
     );
 
@@ -160,6 +166,7 @@ describe("usePortfolio", () => {
     });
 
     rerender({ address: null });
+    rerender({ address: null as any });
 
     expect(result.current.bets).toEqual([]);
     expect(result.current.summary).toBe(null);
@@ -167,6 +174,7 @@ describe("usePortfolio", () => {
 
   it("refetches when address changes", async () => {
     const mockBets = [];
+    const mockBets: any = [];
     const mockSummary = {
       totalStaked: "1000000000",
       totalWinnings: "500000000",
@@ -181,6 +189,7 @@ describe("usePortfolio", () => {
 
     const { rerender } = renderHook(
       ({ address }) => usePortfolio(address),
+      ({ address }: any) => usePortfolio(address),
       { initialProps: { address: "GADDR1111111111111111" } }
     );
 
@@ -189,6 +198,7 @@ describe("usePortfolio", () => {
     });
 
     rerender({ address: "GADDR2222222222222222" });
+    rerender({ address: "GADDR2222222222222222" as any });
 
     await waitFor(() => {
       expect(mockFetchBetsByAddress).toHaveBeenCalledWith("GADDR2222222222222222");

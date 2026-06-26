@@ -4,6 +4,16 @@ import { ClaimReceipt } from "@/components/ClaimButton";
 import { buildSorobanInvocation, submitTransaction, decodeScVal } from "@/lib/stellar";
 import { fetchMarketById, fetchMarketBets } from "@/lib/api";
 import { useWallet } from "@/hooks/useWallet";
+import { buildSorobanInvocation, submitTransaction, decodeScVal } from "@/lib/stellar";
+import { fetchMarketById, fetchMarketBets } from "@/lib/api";
+import { useWallet } from "@/hooks/useWallet";
+
+export interface ClaimReceipt {
+  betId: string;
+  bettor: string;
+  payout: bigint;
+  claimedAt: string;
+}
 
 export interface UseClaimWinningsResult {
   claim: (bet_id: string, market_id: string) => Promise<ClaimReceipt>;

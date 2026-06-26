@@ -7,6 +7,7 @@ jest.mock("@/lib/api", () => ({
 }));
 
 const mockFetchPayoutEstimate = api.fetchPayoutEstimate as jest.Mock;
+const mockFetchPayoutEstimate = api.fetchPayoutEstimate as any;
 
 describe("usePayoutEstimate", () => {
   beforeEach(() => {
@@ -72,12 +73,14 @@ describe("usePayoutEstimate", () => {
 
     const { rerender } = renderHook(
       ({ side, amount }) => usePayoutEstimate("market-1", side, amount),
+      ({ side, amount }: any) => usePayoutEstimate("market-1", side, amount),
       { initialProps: { side: "FighterA" as const, amount: 100n } }
     );
 
     jest.advanceTimersByTime(150);
 
     rerender({ side: "FighterB" as const, amount: 200n });
+    rerender({ side: "FighterB" as any, amount: 200n });
 
     jest.advanceTimersByTime(300);
 
@@ -94,6 +97,7 @@ describe("usePayoutEstimate", () => {
 
     const { rerender } = renderHook(
       ({ amount }) => usePayoutEstimate("market-1", "FighterA", amount),
+      ({ amount }: any) => usePayoutEstimate("market-1", "FighterA", amount),
       { initialProps: { amount: 100n } }
     );
 
@@ -134,6 +138,7 @@ describe("usePayoutEstimate", () => {
 
     const { result, rerender } = renderHook(
       ({ side }) => usePayoutEstimate("market-1", side, 100n),
+      ({ side }: any) => usePayoutEstimate("market-1", side, 100n),
       { initialProps: { side: "FighterA" as const } }
     );
 
@@ -144,6 +149,7 @@ describe("usePayoutEstimate", () => {
     });
 
     rerender({ side: null });
+    rerender({ side: null as any });
 
     expect(result.current.estimate).toBe(null);
   });
@@ -153,6 +159,7 @@ describe("usePayoutEstimate", () => {
 
     const { result, rerender } = renderHook(
       ({ amount }) => usePayoutEstimate("market-1", "FighterA", amount),
+      ({ amount }: any) => usePayoutEstimate("market-1", "FighterA", amount),
       { initialProps: { amount: 100n } }
     );
 

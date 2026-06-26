@@ -23,6 +23,9 @@ export function usePayoutEstimate(
 
   useEffect(() => {
     // Clear previous timeout
+  const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
