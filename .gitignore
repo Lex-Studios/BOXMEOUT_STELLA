@@ -34,3 +34,12 @@ backend/src/generated/
 # Temp files
 *.tmp
 *.swp
+
+# Rust / Cargo build artifacts
+contracts/target/
+
+# Claude Code session files
+.claude/settings.local.json
+
+# Misc repo artifacts
+treasury_changes.txt
