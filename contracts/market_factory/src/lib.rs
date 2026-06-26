@@ -13,11 +13,13 @@ use boxmeout_shared::{
 const MARKET_COUNT: &str    = "MARKET_COUNT";
 const MARKET_MAP: &str      = "MARKET_MAP";
 const ADMIN: &str           = "ADMIN";
+const PENDING_ADMIN: &str   = "PENDING_ADMIN";
 const ORACLE_WHITELIST: &str = "ORACLE_WHITELIST";
 const PAUSED: &str          = "PAUSED";
 const DEFAULT_CONFIG: &str  = "DEFAULT_CONFIG";
 const MARKET_WASM_HASH: &str = "MARKET_WASM_HASH";
 const OPEN_MARKETS: &str    = "OPEN_MARKETS";
+const ALL_MARKETS: &str     = "ALL_MARKETS";
 
 #[contractclient(name = "MarketClient")]
 pub trait MarketInterface {
@@ -93,6 +95,7 @@ impl MarketFactory {
         let zero_hash: BytesN<32> = BytesN::from_array(&env, &[0u8; 32]);
         env.storage().persistent().set(&MARKET_WASM_HASH, &zero_hash);
         env.storage().persistent().set(&OPEN_MARKETS, &Vec::<u64>::new(&env));
+        env.storage().persistent().set(&ALL_MARKETS, &Vec::<u64>::new(&env));
         Ok(())
     }
 
@@ -203,6 +206,12 @@ impl MarketFactory {
         open_markets.push_back(market_id);
         env.storage().persistent().set(&OPEN_MARKETS, &open_markets);
 
+        // Track in all markets list
+        let mut all_markets: Vec<u64> =
+            env.storage().persistent().get(&ALL_MARKETS).unwrap_or_else(|| Vec::new(&env));
+        all_markets.push_back(market_id);
+        env.storage().persistent().set(&ALL_MARKETS, &all_markets);
+
         boxmeout_shared::emit_market_created(&env, market_id, market_address, fight.match_id);
         Ok(market_id)
     }
@@ -240,6 +249,27 @@ impl MarketFactory {
                 }
             }
             i += 1;
+        }
+        result
+    }
+
+    /// Returns a paginated list of all market IDs.
+    /// Returns empty Vec when offset >= total (no panic).
+    /// `limit` is capped at 100.
+    pub fn get_markets_paginated(env: Env, offset: u64, limit: u32) -> Vec<u64> {
+        let all_markets: Vec<u64> = env.storage().persistent()
+            .get(&ALL_MARKETS)
+            .unwrap_or_else(|| Vec::new(&env));
+        let total = all_markets.len();
+        if (offset as u32) >= total {
+            return Vec::new(&env);
+        }
+        let cap = if limit > 100 { 100u32 } else { limit };
+        let mut result: Vec<u64> = Vec::new(&env);
+        let start = offset as u32;
+        let end = (start + cap).min(total);
+        for i in start..end {
+            result.push_back(all_markets.get(i).unwrap());
         }
         result
     }
@@ -342,7 +372,8 @@ impl MarketFactory {
         env.storage().persistent().get(&ORACLE_WHITELIST).unwrap_or_else(|| Vec::new(&env))
     }
 
-    /// Transfers admin privileges to a new address.
+    /// Initiates a two-step admin transfer by storing the new admin as pending.
+    /// The new admin must call `accept_admin` to complete the transfer.
     ///
     /// # Errors
     /// - `Unauthorized`: Caller is not the current admin
@@ -354,34 +385,59 @@ impl MarketFactory {
         current_admin.require_auth();
         Self::require_admin(&env, &current_admin)?;
 
+        env.storage().persistent().set(&PENDING_ADMIN, &new_admin);
+        Ok(())
+    }
+
+    /// Completes the two-step admin transfer.
+    /// Caller must match the address stored as PENDING_ADMIN.
+    ///
+    /// # Errors
+    /// - `Unauthorized`: Caller does not match PENDING_ADMIN or no transfer pending
+    /// - `Unauthorized`: Wrong address (panics if caller != PENDING_ADMIN)
+    pub fn accept_admin(
+        env: Env,
+        caller: Address,
+    ) -> Result<(), ContractError> {
+        caller.require_auth();
+        let pending: Address = env
+            .storage().persistent()
+            .get(&PENDING_ADMIN)
+            .ok_or(ContractError::Unauthorized)?;
+        if caller != pending {
+            return Err(ContractError::Unauthorized);
+        }
         let old_admin: Address = env
             .storage().persistent()
             .get(&ADMIN)
             .ok_or(ContractError::Unauthorized)?;
-        env.storage().persistent().set(&ADMIN, &new_admin);
-        boxmeout_shared::emit_admin_transferred(&env, old_admin, new_admin);
+        env.storage().persistent().set(&ADMIN, &caller);
+        env.storage().persistent().remove(&PENDING_ADMIN);
+        boxmeout_shared::emit_admin_transferred(&env, old_admin, caller);
         Ok(())
     }
 
-    /// Pauses the factory, preventing new market creation.
+    /// Pauses the protocol, preventing new market creation and betting.
     ///
     /// # Errors
     /// - `Unauthorized`: Caller is not the admin
-    pub fn pause_factory(env: Env, admin: Address) -> Result<(), ContractError> {
+    pub fn pause_protocol(env: Env, admin: Address) -> Result<(), ContractError> {
         admin.require_auth();
         Self::require_admin(&env, &admin)?;
         env.storage().persistent().set(&PAUSED, &true);
+        boxmeout_shared::emit_protocol_paused(&env);
         Ok(())
     }
 
-    /// Unpauses the factory, allowing new market creation.
+    /// Unpauses the protocol, allowing new market creation and betting.
     ///
     /// # Errors
     /// - `Unauthorized`: Caller is not the admin
-    pub fn unpause_factory(env: Env, admin: Address) -> Result<(), ContractError> {
+    pub fn unpause_protocol(env: Env, admin: Address) -> Result<(), ContractError> {
         admin.require_auth();
         Self::require_admin(&env, &admin)?;
         env.storage().persistent().set(&PAUSED, &false);
+        boxmeout_shared::emit_protocol_unpaused(&env);
         Ok(())
     }
 
@@ -512,10 +568,10 @@ mod tests {
 
         assert!(!client.is_paused());
 
-        client.pause_factory(&admin);
+        client.pause_protocol(&admin);
         assert!(client.is_paused());
 
-        client.unpause_factory(&admin);
+        client.unpause_protocol(&admin);
         assert!(!client.is_paused());
     }
 
@@ -527,7 +583,7 @@ mod tests {
         let oracles: Vec<Address> = Vec::new(&env);
         client.initialize(&admin, &200u32, &oracles);
 
-        let result = client.try_pause_factory(&impostor);
+        let result = client.try_pause_protocol(&impostor);
         assert!(result.is_err());
 
         assert!(!client.is_paused());
@@ -541,10 +597,10 @@ mod tests {
         let oracles: Vec<Address> = Vec::new(&env);
         client.initialize(&admin, &200u32, &oracles);
 
-        client.pause_factory(&admin);
+        client.pause_protocol(&admin);
         assert!(client.is_paused());
 
-        let result = client.try_unpause_factory(&impostor);
+        let result = client.try_unpause_protocol(&impostor);
         assert!(result.is_err());
 
         assert!(client.is_paused());
@@ -558,7 +614,7 @@ mod tests {
         let oracles: Vec<Address> = Vec::new(&env);
         client.initialize(&admin, &200u32, &oracles);
 
-        client.pause_factory(&admin);
+        client.pause_protocol(&admin);
         assert!(client.is_paused());
 
         let fight = default_fight(&env);
@@ -584,5 +640,73 @@ mod tests {
             result.is_err(),
             "Should fail (no WASM hash) but NOT due to pause guard"
         );
+    }
+
+    #[test]
+    fn test_get_markets_paginated_returns_empty_when_no_markets() {
+        let (env, client) = setup();
+        let admin = Address::generate(&env);
+        let oracles: Vec<Address> = Vec::new(&env);
+        client.initialize(&admin, &200u32, &oracles);
+
+        let result = client.get_markets_paginated(&0u64, &10u32);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_get_markets_paginated_returns_empty_when_offset_ge_total() {
+        let (env, client) = setup();
+        let admin = Address::generate(&env);
+        let oracles: Vec<Address> = Vec::new(&env);
+        client.initialize(&admin, &200u32, &oracles);
+
+        let result = client.get_markets_paginated(&100u64, &10u32);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_transfer_admin_and_accept_admin_two_step() {
+        let (env, client) = setup();
+        let admin = Address::generate(&env);
+        let new_admin = Address::generate(&env);
+        let oracles: Vec<Address> = Vec::new(&env);
+        client.initialize(&admin, &200u32, &oracles);
+
+        // Step 1: transfer_admin stores pending
+        client.transfer_admin(&admin, &new_admin);
+
+        // Old admin is still admin before accept
+        // Step 2: accept_admin completes the transfer
+        client.accept_admin(&new_admin);
+
+        // Verify new_admin is now admin by performing admin-only operation
+        client.pause_protocol(&new_admin);
+        assert!(client.is_paused());
+    }
+
+    #[test]
+    fn test_accept_admin_wrong_address_panics() {
+        let (env, client) = setup();
+        let admin = Address::generate(&env);
+        let new_admin = Address::generate(&env);
+        let impostor = Address::generate(&env);
+        let oracles: Vec<Address> = Vec::new(&env);
+        client.initialize(&admin, &200u32, &oracles);
+
+        client.transfer_admin(&admin, &new_admin);
+
+        let result = client.try_accept_admin(&impostor);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_accept_admin_without_transfer_panics() {
+        let (env, client) = setup();
+        let admin = Address::generate(&env);
+        let oracles: Vec<Address> = Vec::new(&env);
+        client.initialize(&admin, &200u32, &oracles);
+
+        let result = client.try_accept_admin(&admin);
+        assert!(result.is_err());
     }
 }
