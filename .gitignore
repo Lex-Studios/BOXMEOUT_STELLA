@@ -45,3 +45,13 @@ contracts/target/
 
 # Misc repo artifacts
 treasury_changes.txt
+# ─── Claude / AI tooling ─────────────────────────────────────
+.claude/
+
+# ─── Compiled output (scoped) ────────────────────────────────
+backend/dist/
+backend/build/
+frontend/dist/
+frontend/build/
+indexer/dist/
+indexer/build/
