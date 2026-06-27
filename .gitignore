@@ -37,3 +37,11 @@ backend/src/generated/
 
 # Soroban deploy output — contains contract IDs and must not be committed
 contracts/scripts/.env.testnet
+# Rust / Cargo build artifacts
+contracts/target/
+
+# Claude Code session files
+.claude/settings.local.json
+
+# Misc repo artifacts
+treasury_changes.txt
